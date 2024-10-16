@@ -8,7 +8,7 @@ env:
     -tensorflow
 
 git:
-    (刪除,增加)
+    (刪除,增加,update)
     git add .
     git commit -m "?"
 
@@ -23,4 +23,6 @@ git:
 
 待辦
     -alarm (Permission denied or directory doesn't exist: /path/to/alarms\boxing_alarm_20241016-1)
+    -python web 
+    -錄製特定動作
     
