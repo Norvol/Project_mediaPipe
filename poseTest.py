@@ -1,4 +1,4 @@
-#ftp版本----------
+import streamlit as st
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -8,34 +8,35 @@ import os
 import time
 from ftplib import FTP
 import logging
+import tempfile
 
-# 配置日誌
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# MediaPipe 初始化
+# MediaPipe initialization
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
 
-# 模型選擇
+# Model choices
 MODEL_CHOICES = {
     'rf': 'C:/Users/ISSLAB/Downloads/MediaPipe_MainOut/Data/random_forest_model.joblib',
     'svm': 'C:/Users/ISSLAB/Downloads/MediaPipe_MainOut/Data/support_vector_machine_model.joblib',
     'nn': 'C:/Users/ISSLAB/Downloads/MediaPipe_MainOut/Data/neural_network_model.joblib'
 }
-SELECTED_MODEL = 'rf'
 
-# FTP 配置
-FTP_SERVER = '140.128.102.142'  #'140.128.102.142'
+# FTP configuration
+FTP_SERVER = '140.128.102.142'
 FTP_PORT = 21
 FTP_USERNAME = 'isslabView'
 FTP_PASSWORD = 'isslab411view114'
-FTP_ALARM_PATH = 'C:/Users/ISSLAB/Downloads/alarm'  # FTP 服務器上的路徑
+FTP_ALARM_PATH = '/alarm'  # FTP server path
 
-# Alarm 條件
-ALARM_COOLDOWN = 30  # 警報冷卻時間（秒）
-BOXING_DURATION_THRESHOLD = 2  # 需要的 'Boxing' 次數
+# Alarm conditions
+ALARM_COOLDOWN = 30  # seconds
+BOXING_DURATION_THRESHOLD = 2  # required 'Boxing' count
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+@st.cache_resource
 def load_model(model_key):
     if model_key not in MODEL_CHOICES:
         raise ValueError(f"Invalid model key. Choose from {', '.join(MODEL_CHOICES.keys())}")
@@ -51,51 +52,61 @@ def send_alarm_to_ftp(timestamp):
     alarm_content = f"Boxing detected at {timestamp}"
 
     try:
-        # 在本地創建一個警報文件
-        with open(alarm_file_name, 'w') as f:
-            f.write(alarm_content)
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+            temp_file.write(alarm_content)
+            temp_file_path = temp_file.name
 
-        # 使用 FTP 傳送文件到服務器
         with FTP() as ftp:
             ftp.connect(FTP_SERVER, FTP_PORT)
             ftp.login(FTP_USERNAME, FTP_PASSWORD)
             ftp.cwd(FTP_ALARM_PATH)
-            with open(alarm_file_name, 'rb') as file:
+            with open(temp_file_path, 'rb') as file:
                 ftp.storbinary(f'STOR {alarm_file_name}', file)
 
+        st.success(f"Alarm sent to FTP: {FTP_ALARM_PATH}/{alarm_file_name}")
         logging.info(f"Alarm sent to FTP: {FTP_ALARM_PATH}/{alarm_file_name}")
 
     except Exception as e:
-        print()
+        st.error(f"Failed to send alarm to FTP: {str(e)}")
         logging.error(f"Failed to send alarm to FTP: {str(e)}")
-        print()
-    # finally:
-    #     # 刪除本地創建的警報文件
-    #     if os.path.exists(alarm_file_name):
-    #         os.remove(alarm_file_name)
+    finally:
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
 
 def main():
-    model = load_model(SELECTED_MODEL)
+    st.title("Pose Classification App")
+
+    # Model selection
+    selected_model = st.selectbox("Select Model", list(MODEL_CHOICES.keys()))
+    model = load_model(selected_model)
+
+    # Video source selection
+    source_option = st.radio("Select video source", ('Webcam', 'Upload Video'))
+    
+    if source_option == 'Upload Video':
+        uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "avi", "mov"])
+        if uploaded_file is not None:
+            tfile = tempfile.NamedTemporaryFile(delete=False) 
+            tfile.write(uploaded_file.read())
+            vf = cv2.VideoCapture(tfile.name)
+        else:
+            st.warning("Please upload a video file.")
+            return
+    else:
+        vf = cv2.VideoCapture(0)
+
+    stframe = st.empty()
+    
     recent_predictions = deque(maxlen=10)
     last_alarm_time = 0
-    
     boxing_start_time = None
     boxing_accumulated_time = 0
-    
-    print("\nEnter 'c' for webcam or provide a video file path:")       # C:\Users\ISSLAB\Downloads\MediaPipe_MainOut\testv.mp4
-    input_source = input().strip()
-    
-    cap = cv2.VideoCapture(0) if input_source.lower() == 'c' else cv2.VideoCapture(input_source)
-    
-    if not cap.isOpened():
-        logging.error("Error opening video stream or file")
-        return
 
     with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
-        while cap.isOpened():
-            ret, img = cap.read()
+        while vf.isOpened():
+            ret, img = vf.read()
             if not ret:
-                logging.info("Can't receive frame (stream end?). Exiting ...")
+                st.warning("Can't receive frame (stream end?). Exiting ...")
                 break
             
             img = cv2.resize(img, (640, 480))
@@ -124,33 +135,29 @@ def main():
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 
                 current_time = time.time()
-                # 如果檢測到 "Boxing" 且信心度大於 0.8
-                if pose_class == 'Normal' and confidence > 0.8:
+                if pose_class == 'Boxing' and confidence > 0.8:
                     if boxing_start_time is None:
-                        # 開始新的 "Boxing" 計時
                         boxing_start_time = current_time
                     else:
-                        # 累加 "Boxing" 的持續時間
                         boxing_accumulated_time += current_time - boxing_start_time
                         boxing_start_time = current_time
-
                 else:
-                    # 如果不是 "Boxing"，重置起始時間
                     boxing_start_time = None
                 
-                # 如果累積時間超過閾值並且冷卻時間已過，發送警報
                 if boxing_accumulated_time >= BOXING_DURATION_THRESHOLD and (current_time - last_alarm_time) > ALARM_COOLDOWN:
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
                     send_alarm_to_ftp(timestamp)
                     last_alarm_time = current_time
-                    boxing_accumulated_time = 0  # 重置累積時間以防止重複觸發
+                    boxing_accumulated_time = 0
             
-            cv2.imshow('Pose Classification', img)
-            if cv2.waitKey(5) == ord('q'):
+            stframe.image(img, channels="BGR")
+            
+            if cv2.waitKey(5) & 0xFF == 27:  # Press 'Esc' to exit
                 break
-    
-    cap.release()
-    cv2.destroyAllWindows()
+
+    vf.release()
 
 if __name__ == "__main__":
     main()
+
+    # streamlit run poseTest.py    

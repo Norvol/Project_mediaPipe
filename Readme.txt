@@ -6,6 +6,7 @@ env:
     -mediapipe
     -numpy
     -tensorflow
+    -streamlit
 
 git:
     (刪除,增加,update)
@@ -25,6 +26,5 @@ git:
 
 待辦
     -alarm (Permission denied or directory doesn't exist: /path/to/alarms\boxing_alarm_20241016-1)
-    -python web 
     -錄製特定動作
     

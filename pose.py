@@ -125,7 +125,7 @@ def main():
                 
                 current_time = time.time()
                 # 如果檢測到 "Boxing" 且信心度大於 0.8
-                if pose_class == 'Normal' and confidence > 0.8:
+                if pose_class == 'Boxing' and confidence > 0.8:
                     if boxing_start_time is None:
                         # 開始新的 "Boxing" 計時
                         boxing_start_time = current_time
