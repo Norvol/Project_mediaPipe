@@ -18,6 +18,8 @@ git:
     git diff (userid) -- (codeName)     #比較版本
     git checkout (userid) -- (codeName)     #改回版本 需commit
 
+    git push
+
     
 
 
