@@ -35,3 +35,15 @@
     git diff (userid) -- (codeName)     *(比較版本)*
     git checkout (userid) -- (codeName)     *(改回版本 需commit)*
     git push
+
+
+## 提要:
+- data_process 
+- train1: 訓練模型用
+- pose, poeTest --> log, main, app
+- config, ftp_test: 測試ftp連線
+- 無需理會：
+  - Data
+  - _ _pycache__ 
+  - .DS_Store
+  - .gitignore
