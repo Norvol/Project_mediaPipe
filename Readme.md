@@ -27,4 +27,4 @@ git:
 待辦
     -alarm (Permission denied or directory doesn't exist: /path/to/alarms\boxing_alarm_20241016-1)
     -錄製特定動作
-    
+    s
