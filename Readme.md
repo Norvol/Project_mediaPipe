@@ -15,11 +15,11 @@
 - tensorflow
 - streamlit
 - moviepy
-- ffmpeg（僅限 macOS 用戶）
+- ffmpeg
   
   安裝指令：
   ```bash
-  brew install ffmpeg
+  brew install ffmpeg    #only for macOS (homebrew) user 
 
 ## git:
 
@@ -29,14 +29,9 @@
 
     git log
     git log --oneline
+    git log --graph --pretty=format:"%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset" --abbrev-commit --date=relative
+    (fancy one 🗿)
 
     git diff (userid) -- (codeName)     *(比較版本)*
     git checkout (userid) -- (codeName)     *(改回版本 需commit)*
     git push
-
-    
-
-
-## 待辦
-
-    -alarm (Permission denied or directory doesn't exist: /path/to/alarms\boxing_alarm_20241016-1)
